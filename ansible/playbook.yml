@@ -1,0 +1,81 @@
+# ============================================================
+# ansible/playbook.yml — Phase 5: Configuration Management
+# Installs Docker and prepares the environment on target hosts
+# Run with: ansible-playbook -i inventory.ini playbook.yml
+# ============================================================
+
+---
+- name: Configure DevOps Environment
+  hosts: all
+  become: true             # Run tasks with sudo privileges
+
+  tasks:
+
+    # ── Task 1: Update apt package cache ──────────────────
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    # ── Task 2: Install required system packages ──────────
+    - name: Install prerequisite packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - software-properties-common
+        state: present
+
+    # ── Task 3: Add Docker's official GPG key ─────────────
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    # ── Task 4: Add Docker apt repository ─────────────────
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+        state: present
+
+    # ── Task 5: Install Docker CE ─────────────────────────
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+
+    # ── Task 6: Start and enable Docker service ───────────
+    - name: Enable and start Docker
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    # ── Task 7: Add current user to docker group ──────────
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    # ── Task 8: Install Python3 and pip ───────────────────
+    - name: Install Python3 and pip
+      apt:
+        name:
+          - python3
+          - python3-pip
+        state: present
+
+    # ── Task 9: Verify Docker installation ────────────────
+    - name: Verify Docker is running
+      command: docker --version
+      register: docker_version
+
+    - name: Print Docker version
+      debug:
+        msg: "Docker installed: {{ docker_version.stdout }}"

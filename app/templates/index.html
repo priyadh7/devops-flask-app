@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DevOps Flask App</title>
+  <style>
+    /* ── Simple, clean styling for evaluation screenshots ── */
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 420px;
+      text-align: center;
+    }
+    h1 { color: #2d3748; margin-bottom: 8px; }
+    p.subtitle { color: #718096; font-size: 14px; margin-bottom: 24px; }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 14px;
+      width: 100%;
+      padding: 10px;
+      background: #4299e1;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:hover { background: #3182ce; }
+    .output {
+      margin-top: 20px;
+      padding: 12px;
+      background: #ebf8ff;
+      border-left: 4px solid #4299e1;
+      border-radius: 4px;
+      color: #2b6cb0;
+      font-weight: bold;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🚀 DevOps Flask App</h1>
+    <p class="subtitle">End-to-End DevOps Pipeline Demo</p>
+
+    <!-- Input Form -->
+    <form method="POST" action="/">
+      <input
+        type="text"
+        name="user_input"
+        placeholder="Enter any text..."
+        required
+      />
+      <button type="submit">Submit</button>
+    </form>
+
+    <!-- Output Display (shown only after POST) -->
+    {% if output %}
+    <div class="output">
+      {{ output }}
+    </div>
+    {% endif %}
+  </div>
+</body>
+</html>

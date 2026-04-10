@@ -1,0 +1,35 @@
+# ============================================================
+# k8s/deployment.yaml — Phase 4: Kubernetes Deployment
+# Deploys the Flask app container to AKS
+# ============================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-app
+  labels:
+    app: flask-app          # Label used by Service selector
+spec:
+  replicas: 2               # Run 2 pods for basic availability
+  selector:
+    matchLabels:
+      app: flask-app
+  template:
+    metadata:
+      labels:
+        app: flask-app
+    spec:
+      containers:
+        - name: flask-app
+          # Image pulled from ACR — replaced by CI/CD pipeline
+          image: devopsprojectacr.azurecr.io/flask-app:latest
+          ports:
+            - containerPort: 5000   # Port Flask/Gunicorn listens on
+          # Resource limits to prevent runaway consumption
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"

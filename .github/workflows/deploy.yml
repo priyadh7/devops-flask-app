@@ -1,0 +1,82 @@
+# ============================================================
+# .github/workflows/deploy.yml — Phase 6: CI/CD Pipeline
+# Trigger: Push to main branch
+# Steps: Build → Push to ACR → Deploy to AKS
+# ============================================================
+
+name: Build and Deploy to AKS
+
+on:
+  push:
+    branches:
+      - main          # Pipeline runs only on push to main
+
+env:
+  # ── These values must match your Terraform-provisioned names ──
+  ACR_NAME: devopsprojectacr
+  IMAGE_NAME: flask-app
+  AKS_CLUSTER: devops-aks-cluster
+  RESOURCE_GROUP: devops-project-rg
+
+jobs:
+  build-and-deploy:
+    name: Build, Push, Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ── Step 1: Checkout source code ──────────────────────
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ── Step 2: Log in to Azure using Service Principal ───
+      # Secrets are stored in GitHub → Settings → Secrets
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ── Step 3: Log in to Azure Container Registry ────────
+      - name: Login to ACR
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+
+      # ── Step 4: Build Docker image and tag with commit SHA ─
+      - name: Build Docker Image
+        run: |
+          docker build \
+            -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest \
+            ./app
+
+      # ── Step 5: Push image to ACR ─────────────────────────
+      - name: Push Image to ACR
+        run: |
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+
+      # ── Step 6: Set AKS kubectl context ───────────────────
+      - name: Set AKS Context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ env.RESOURCE_GROUP }}
+          cluster-name:   ${{ env.AKS_CLUSTER }}
+
+      # ── Step 7: Update deployment image to new SHA tag ────
+      - name: Deploy to AKS
+        run: |
+          # Apply manifests (idempotent — safe to run repeatedly)
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+
+          # Update the running deployment to use the new image
+          kubectl set image deployment/flask-app \
+            flask-app=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+          # Wait until rollout completes before marking pipeline green
+          kubectl rollout status deployment/flask-app
+
+      # ── Step 8: Print external IP for verification ────────
+      - name: Get External IP
+        run: |
+          kubectl get service flask-app-service

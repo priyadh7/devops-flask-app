@@ -1,0 +1,18 @@
+# ============================================================
+# k8s/service.yaml — Phase 4: Kubernetes Service
+# Exposes the Flask app to the internet via LoadBalancer
+# ============================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-app-service
+spec:
+  # LoadBalancer provisions an Azure public IP automatically
+  type: LoadBalancer
+  selector:
+    app: flask-app          # Must match Deployment pod labels
+  ports:
+    - protocol: TCP
+      port: 80              # External port (browser-accessible)
+      targetPort: 5000      # Internal container port
