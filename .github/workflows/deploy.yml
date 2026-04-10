@@ -1,7 +1,7 @@
 # ============================================================
 # .github/workflows/deploy.yml — Phase 6: CI/CD Pipeline
 # Trigger: Push to main branch
-# Steps: Build Docker image → Push to GHCR → Deploy summary
+# Steps: Build Docker image → Run tests → Deploy summary
 # ============================================================
 
 name: Build and Deploy
@@ -11,14 +11,9 @@ on:
     branches:
       - main
 
-env:
-  IMAGE_NAME: flask-app
-  REGISTRY: ghcr.io
-  IMAGE_FULL: ghcr.io/${{ github.repository_owner }}/flask-app
-
 jobs:
   build-and-deploy:
-    name: Build, Push, Deploy
+    name: Build, Test, Deploy
     runs-on: ubuntu-latest
 
     steps:
@@ -27,45 +22,54 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # ── Step 2: Log in to GitHub Container Registry ───────
-      # Uses built-in GITHUB_TOKEN — no secrets needed
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      # ── Step 2: Set up Python ─────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          python-version: "3.10"
 
-      # ── Step 3: Build Docker image ─────────────────────────
+      # ── Step 3: Install dependencies ──────────────────────
+      - name: Install Dependencies
+        run: pip install -r app/requirements.txt
+
+      # ── Step 4: Test the Flask app ────────────────────────
+      - name: Test Flask App
+        run: |
+          cd app
+          python -c "
+          from app import app
+          client = app.test_client()
+          r = client.get('/')
+          assert r.status_code == 200, 'GET / failed'
+          r = client.post('/', data={'user_input': 'hello'})
+          assert b'HELLO' in r.data, 'POST / failed'
+          print('All tests passed')
+          "
+
+      # ── Step 5: Build Docker image ────────────────────────
       - name: Build Docker Image
         run: |
-          docker build \
-            -t ${{ env.IMAGE_FULL }}:${{ github.sha }} \
-            -t ${{ env.IMAGE_FULL }}:latest \
-            ./app
+          docker build -t flask-app:${{ github.sha }} ./app
+          docker build -t flask-app:latest ./app
 
-      # ── Step 4: Push image to GitHub Container Registry ───
-      - name: Push Image to GHCR
+      # ── Step 6: Verify Docker image ───────────────────────
+      - name: Verify Docker Image
         run: |
-          docker push ${{ env.IMAGE_FULL }}:${{ github.sha }}
-          docker push ${{ env.IMAGE_FULL }}:latest
-
-      # ── Step 5: Verify image was pushed ───────────────────
-      - name: Verify Image
-        run: |
-          echo "✅ Image pushed: ${{ env.IMAGE_FULL }}:${{ github.sha }}"
           docker images | grep flask-app
+          docker run --rm -d -p 5000:5000 --name test-container flask-app:latest
+          sleep 3
+          curl -f http://localhost:5000 && echo "Container is healthy"
+          docker stop test-container
 
-      # ── Step 6: Simulate Kubernetes deployment ─────────────
-      # In production this would run: kubectl apply -f k8s/
+      # ── Step 7: Deployment Summary ────────────────────────
       - name: Deployment Summary
         run: |
           echo "============================================"
           echo "  DEPLOYMENT SUMMARY"
           echo "============================================"
-          echo "  Image   : ${{ env.IMAGE_FULL }}:latest"
+          echo "  Image   : flask-app:latest"
           echo "  Commit  : ${{ github.sha }}"
           echo "  Branch  : ${{ github.ref_name }}"
-          echo "  Status  : ✅ Ready for Kubernetes deploy"
+          echo "  Status  : Ready for Kubernetes deploy"
           echo "  K8s cmd : kubectl apply -f k8s/"
           echo "============================================"
