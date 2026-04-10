@@ -291,3 +291,5 @@ az ad sp create-for-rbac \
 ---
 
 *Project developed for university evaluation — End-to-End DevOps Implementation*
+
+<!-- dev branch update -->
